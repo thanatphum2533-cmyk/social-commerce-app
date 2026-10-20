@@ -230,11 +230,13 @@ export default function Home() {
     pingAndFetchOnline();
     fetchUsers();
     
-    const interval = setInterval(() => {
-      fetchMessages();
-      pingAndFetchOnline();
-    }, 3000);
-    return () => clearInterval(interval);
+    // ดึงข้อความเร็วขึ้นเป็นทุก 1 วินาที (Fast Real-time Polling)
+    const msgInterval = setInterval(fetchMessages, 1000);
+    const pingInterval = setInterval(pingAndFetchOnline, 5000);
+    return () => {
+      clearInterval(msgInterval);
+      clearInterval(pingInterval);
+    };
   }, [loggedInUser]);
 
   // ฟังก์ชันสุ่มสีและตัวอักษร Avatar สำหรับลูกค้าแต่ละคน
