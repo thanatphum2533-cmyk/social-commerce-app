@@ -3,6 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import { supabase } from '@/app/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: Request) {
   // 1. ถ้ามี Supabase ให้ดึงจาก Supabase ก่อน (สำหรับ Vercel)
   if (supabase) {
@@ -31,7 +34,7 @@ export async function GET(request: Request) {
 
         return NextResponse.json(formatted, {
           headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
             'Pragma': 'no-cache',
             'Expires': '0',
           }
@@ -53,7 +56,7 @@ export async function GET(request: Request) {
   
   return NextResponse.json(msgs, {
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
       'Pragma': 'no-cache',
       'Expires': '0',
     }
