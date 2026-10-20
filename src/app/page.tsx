@@ -159,7 +159,7 @@ export default function Home() {
   const [onlineAdmins, setOnlineAdmins] = useState<string[]>([]);
   
   // --- ระบบตั้งค่าเพจ ---
-  const [appConfig, setAppConfig] = useState<any>({ pageName: '', accessToken: '', shopName: '', shopAddress: '', shopPhone: '', shippingOptions: [] });
+  const [appConfig, setAppConfig] = useState<any>({ pageName: '', accessToken: '', shopName: '', shopAddress: '', shopPhone: '', bankName: 'ธนาคารกสิกรไทย', bankAccountNumber: '123-4-56789-0', bankAccountName: 'บจก. อริสา จิวเวลรี่', shippingOptions: [] });
   const [fbPages, setFbPages] = useState<any[]>([]);
   const [isFbModalOpen, setIsFbModalOpen] = useState(false);
   const [isLoadingFb, setIsLoadingFb] = useState(false);
@@ -520,6 +520,10 @@ export default function Home() {
     if (!targetCustomerId) return alert("ไม่มีลูกค้าให้ส่งบิลครับ");
     if (billItems.length === 0) return alert("กรุณาเลือกสินค้าอย่างน้อย 1 ชิ้นครับ");
 
+    const bankName = appConfig.bankName || 'ธนาคารกสิกรไทย';
+    const bankAccNo = appConfig.bankAccountNumber || '123-4-56789-0';
+    const bankAccName = appConfig.bankAccountName || 'บจก. อริสา จิวเวลรี่';
+
     let billText = `🧾 สรุปยอดสั่งซื้อ\n`;
     billText += `----------------------\n`;
     billItems.forEach(item => {
@@ -528,10 +532,16 @@ export default function Home() {
     billText += `----------------------\n`;
     billText += `ค่าจัดส่ง: ${shippingFee} ฿\n`;
     billText += `💰 ยอดโอนรวมทั้งสิ้น: ${calculateTotal()} ฿\n\n`;
-    billText += `🏦 ธนาคารกสิกรไทย\nเลขที่บัญชี: 123-4-56789-0\nชื่อบัญชี: บจก. อริสา จิวเวลรี่\n\nโอนแล้วรบกวนแนบสลิปพร้อมแจ้งที่อยู่จัดส่งได้เลยนะครับ ขอบคุณครับ 🙏`;
+    billText += `🏦 ${bankName}\nเลขที่บัญชี: ${bankAccNo}\nชื่อบัญชี: ${bankAccName}\n\nโอนแล้วรบกวนแนบสลิปพร้อมแจ้งที่อยู่จัดส่งได้เลยนะครับ ขอบคุณครับ 🙏`;
 
     setIsSending(true);
     try {
+      // บันทึกข้อมูลบัญชีธนาคารล่าสุดไว้ใน config ด้วย
+      fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appConfig)
+      }).catch(() => {});
       // 1. ส่งแชท
       const res = await fetch('/api/reply', {
         method: 'POST',
@@ -1728,6 +1738,44 @@ export default function Home() {
                 </div>
                 
                 <div className="border-t border-gray-200 pt-4 mt-4">
+                  <label className="block text-xs font-bold text-gray-700 mb-3">
+                    <i className="fa-solid fa-building-columns text-orange-500 mr-1"></i> บัญชีธนาคารสำหรับรับโอนเงิน (แสดงในบิลสรุปยอด)
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">ธนาคาร</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-orange-500"
+                        value={appConfig.bankName ?? 'ธนาคารกสิกรไทย'}
+                        onChange={(e) => setAppConfig({ ...appConfig, bankName: e.target.value })}
+                        placeholder="เช่น ธนาคารกสิกรไทย"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">เลขที่บัญชี</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg p-2.5 text-sm font-mono focus:outline-none focus:border-orange-500"
+                        value={appConfig.bankAccountNumber ?? '123-4-56789-0'}
+                        onChange={(e) => setAppConfig({ ...appConfig, bankAccountNumber: e.target.value })}
+                        placeholder="เช่น 123-4-56789-0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600 mb-1">ชื่อบัญชี</label>
+                      <input
+                        type="text"
+                        className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:border-orange-500"
+                        value={appConfig.bankAccountName ?? 'บจก. อริสา จิวเวลรี่'}
+                        onChange={(e) => setAppConfig({ ...appConfig, bankAccountName: e.target.value })}
+                        placeholder="เช่น บจก. อริสา จิวเวลรี่"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-4 mt-4">
                   <label className="block text-xs font-bold text-gray-700 mb-3">อัตราค่าจัดส่ง (กิโลกรัมแรก / +กิโลกรัมถัดไป)</label>
                   {appConfig.shippingOptions?.map((o: any, idx: number) => (
                     <div key={o.id} className="flex gap-3 items-center mb-3">
@@ -2004,6 +2052,35 @@ export default function Home() {
                     )}
                   </div>
                   <input type="number" value={shippingFee || ''} onChange={e => setShippingFee(Number(e.target.value))} className="w-24 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-right focus:ring-1 focus:ring-[#10b981] outline-none" placeholder="0" />
+                </div>
+
+                <div className="mt-2 pt-3 border-t border-gray-200">
+                  <p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1">
+                    <i className="fa-solid fa-building-columns text-[#10b981]"></i> บัญชีรับโอนเงินที่จะแนบในบิล (แก้ไขได้)
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      value={appConfig.bankName ?? 'ธนาคารกสิกรไทย'}
+                      onChange={e => setAppConfig({ ...appConfig, bankName: e.target.value })}
+                      placeholder="ชื่อธนาคาร"
+                      className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 outline-none focus:ring-1 focus:ring-[#10b981]"
+                    />
+                    <input
+                      type="text"
+                      value={appConfig.bankAccountNumber ?? '123-4-56789-0'}
+                      onChange={e => setAppConfig({ ...appConfig, bankAccountNumber: e.target.value })}
+                      placeholder="เลขที่บัญชี"
+                      className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono text-gray-900 outline-none focus:ring-1 focus:ring-[#10b981]"
+                    />
+                    <input
+                      type="text"
+                      value={appConfig.bankAccountName ?? 'บจก. อริสา จิวเวลรี่'}
+                      onChange={e => setAppConfig({ ...appConfig, bankAccountName: e.target.value })}
+                      placeholder="ชื่อบัญชี"
+                      className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 outline-none focus:ring-1 focus:ring-[#10b981]"
+                    />
+                  </div>
                 </div>
               </div>
 

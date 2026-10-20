@@ -16,6 +16,9 @@ const DEFAULT_CONFIG: Record<string, any> = {
   shopName: "อริสา จิวเวลรี่ (Arisa Jewelry)",
   shopAddress: "123/45 ถนนเจริญนคร แขวงคลองต้นไทร\nเขตคลองสาน กรุงเทพมหานคร 10600",
   shopPhone: "081-234-5678",
+  bankName: "ธนาคารกสิกรไทย",
+  bankAccountNumber: "123-4-56789-0",
+  bankAccountName: "บจก. อริสา จิวเวลรี่",
   welcomeMessage: "สวัสดีครับ ร้านอริสา จิวเวลรี่ ยินดีให้บริการครับ 🙏 สนใจสินค้าชิ้นไหนส่งรูปมาสอบถามได้เลยนะครับ"
 };
 
