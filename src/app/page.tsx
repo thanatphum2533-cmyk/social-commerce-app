@@ -166,7 +166,27 @@ export default function Home() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [selectedCourier, setSelectedCourier] = useState('flash');
 
-  // --- Fetch Data ---
+  // ดึงข้อความและข้อมูลอัตโนมัติทุก 1 วินาที (Background Auto-Refresh)
+  useEffect(() => {
+    if (!loggedInUser) return;
+
+    const fetchMessages = () => {
+      fetch('/api/messages?t=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setMessages(data);
+          }
+        })
+        .catch(e => console.error(e));
+    };
+
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 1000);
+    return () => clearInterval(interval);
+  }, [loggedInUser]);
+
+  // --- Fetch Data อื่นๆ ตอนเปิดเว็บ ---
   useEffect(() => {
     // โหลด Facebook SDK
     (window as any).fbAsyncInit = function() {
@@ -185,11 +205,8 @@ export default function Home() {
        fjs.parentNode?.insertBefore(js, fjs);
      }(document, 'script', 'facebook-jssdk'));
 
-    if (!loggedInUser) return; // ไม่ล็อกอิน ไม่ให้ดึงข้อมูล
+    if (!loggedInUser) return;
 
-    const fetchMessages = () => {
-      fetch('/api/messages', { cache: 'no-store' }).then(r => r.json()).then(setMessages).catch(e => console.error(e));
-    };
     const fetchProducts = () => {
       fetch('/api/products').then(r => r.json()).then(setProducts).catch(e => console.error(e));
     };
@@ -202,8 +219,6 @@ export default function Home() {
     const fetchConfig = () => {
       fetch('/api/config').then(r => r.json()).then(setAppConfig).catch(e => console.error(e));
     };
-    
-    // ระบบ Online Status Ping
     const pingAndFetchOnline = () => {
       fetch('/api/admins/ping', {
         method: 'POST',
@@ -215,28 +230,21 @@ export default function Home() {
       .then(data => setOnlineAdmins(data.online || []))
       .catch(e => console.error(e));
     };
-
     const fetchUsers = () => {
       if (loggedInUser.role === 'admin') {
         fetch('/api/users').then(r => r.json()).then(setSystemUsers).catch(e => console.error(e));
       }
     };
 
-    fetchMessages();
     fetchProducts();
     fetchOrders();
     fetchCustomersInfo();
     fetchConfig();
     pingAndFetchOnline();
     fetchUsers();
-    
-    // ดึงข้อความเร็วขึ้นเป็นทุก 1 วินาที (Fast Real-time Polling)
-    const msgInterval = setInterval(fetchMessages, 1000);
+
     const pingInterval = setInterval(pingAndFetchOnline, 5000);
-    return () => {
-      clearInterval(msgInterval);
-      clearInterval(pingInterval);
-    };
+    return () => clearInterval(pingInterval);
   }, [loggedInUser]);
 
   // ฟังก์ชันสุ่มสีและตัวอักษร Avatar สำหรับลูกค้าแต่ละคน
