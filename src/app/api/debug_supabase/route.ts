@@ -8,28 +8,7 @@ export async function GET() {
 
   let dbError = null;
   let dbCount = 0;
-  let testInsertResult = null;
-  let testInsertError = null;
-
   if (supabase) {
-    // ทดสอบ insert
-    const testId = Date.now();
-    const { data: insData, error: insErr } = await supabase.from('messages').insert([{
-      id: testId,
-      mid: `test_${testId}`,
-      text: 'ระบบ Supabase ใช้งานได้สมบูรณ์แบบ!',
-      time: new Date().toLocaleTimeString('th-TH'),
-      is_customer: false,
-      timestamp: testId,
-      sender_name: 'ระบบทดสอบ'
-    }]).select();
-
-    if (insErr) {
-      testInsertError = insErr.message;
-    } else {
-      testInsertResult = insData;
-    }
-
     const { data, error } = await supabase.from('messages').select('id', { count: 'exact' });
     if (error) dbError = error.message;
     if (data) dbCount = data.length;
@@ -40,8 +19,6 @@ export async function GET() {
     envUrl: envUrl !== 'NOT_FOUND' ? envUrl.slice(0, 15) + '...' : 'MISSING',
     hasKey,
     dbCount,
-    dbError,
-    testInsertError,
-    testInsertResult
+    dbError
   });
 }
