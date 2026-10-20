@@ -574,6 +574,44 @@ export default function Home() {
   const [newProdStock, setNewProdStock] = useState('');
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdWeight, setNewProdWeight] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingImage(true);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 600;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setNewProdImage(compressedDataUrl);
+        setIsUploadingImage(false);
+      };
+      img.onerror = () => setIsUploadingImage(false);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => setIsUploadingImage(false);
+    reader.readAsDataURL(file);
+  };
 
   const handleAddProductDB = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1387,9 +1425,49 @@ export default function Home() {
                   <label className="text-[11px] text-gray-700 font-semibold block mb-1">ชื่อสินค้า</label>
                   <input required value={newProdName} onChange={e=>setNewProdName(e.target.value)} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs" placeholder="เช่น กระเป๋าสะพาย" />
                 </div>
-                <div className="flex-1 min-w-[150px]">
-                  <label className="text-[11px] text-gray-700 font-semibold block mb-1">ลิงก์รูปภาพ (Shopee/เว็บอื่น)</label>
-                  <input value={newProdImage} onChange={e=>setNewProdImage(e.target.value)} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs" placeholder="วางลิงก์รูปภาพที่นี่..." />
+                <div className="flex-1 min-w-[240px]">
+                  <label className="text-[11px] text-gray-700 font-semibold block mb-1">
+                    รูปสินค้า (เลือกรูปจากเครื่อง หรือ วางลิงก์)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {newProdImage ? (
+                      <div className="relative group w-10 h-10 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 flex-shrink-0 shadow-xs">
+                        <img src={newProdImage} alt="preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setNewProdImage('')}
+                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          title="ลบรูปภาพ"
+                        >
+                          <i className="fa-solid fa-times"></i>
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer border border-dashed border-indigo-300 hover:border-[#4f46e5] rounded-lg px-2.5 py-1.5 text-xs text-[#4f46e5] flex items-center gap-1.5 bg-indigo-50/60 hover:bg-indigo-50 transition-colors h-[38px] flex-shrink-0 font-medium">
+                        {isUploadingImage ? (
+                          <i className="fa-solid fa-circle-notch fa-spin"></i>
+                        ) : (
+                          <i className="fa-solid fa-cloud-arrow-up text-sm"></i>
+                        )}
+                        <span>{isUploadingImage ? 'กำลังโหลด...' : 'เลือกรูป'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isUploadingImage}
+                          onChange={handleProductImageUpload}
+                        />
+                      </label>
+                    )}
+                    <input
+                      value={newProdImage.startsWith('data:') ? '(อัปโหลดรูปภาพแล้ว ✓)' : newProdImage}
+                      disabled={newProdImage.startsWith('data:')}
+                      onChange={e=>setNewProdImage(e.target.value)}
+                      type="text"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs disabled:bg-gray-100 disabled:text-gray-600 disabled:font-medium"
+                      placeholder="หรือวางลิงก์รูปภาพ..."
+                    />
+                  </div>
                 </div>
                 <div className="w-24">
                   <label className="text-[11px] text-gray-700 font-semibold block mb-1">ราคา (฿)</label>
@@ -1413,6 +1491,7 @@ export default function Home() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-gray-600 text-xs uppercase border-b border-gray-200">
                   <tr>
+                    <th className="p-4 w-16 text-center">รูป</th>
                     <th className="p-4 w-24">รหัส</th>
                     <th className="p-4">ชื่อสินค้า</th>
                     <th className="p-4 text-right">น้ำหนัก</th>
@@ -1423,6 +1502,15 @@ export default function Home() {
                 <tbody className="divide-y divide-gray-100">
                   {products.map(p => (
                     <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="p-4 text-center">
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="w-10 h-10 object-cover rounded-lg border border-gray-200 mx-auto shadow-xs" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-xs mx-auto">
+                            <i className="fa-solid fa-image"></i>
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4 font-mono text-xs text-gray-500">{p.id}</td>
                       <td className="p-4 font-semibold text-gray-800">{p.name}</td>
                       <td className="p-4 text-right text-gray-500 text-xs">{p.weight ? `${p.weight}g` : '-'}</td>
@@ -1769,13 +1857,20 @@ export default function Home() {
                   <button 
                     key={p.id}
                     onClick={() => handleAddProductToBill(p)}
-                    className="bg-white border border-gray-200 p-2 rounded-lg flex justify-between items-center hover:border-[#10b981] hover:shadow-sm text-left transition-all"
+                    className="bg-white border border-gray-200 p-2 rounded-lg flex items-center gap-2 hover:border-[#10b981] hover:shadow-sm text-left transition-all"
                   >
-                    <div>
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} className="w-9 h-9 object-cover rounded-md border border-gray-100 shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-md bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 text-xs shrink-0">
+                        <i className="fa-solid fa-box"></i>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-800 line-clamp-1">{p.name}</p>
                       <p className="text-[10px] text-gray-500">คงเหลือ {p.stock}</p>
                     </div>
-                    <span className="text-xs font-bold text-[#10b981] bg-green-50 px-2 py-1 rounded">{p.price}฿</span>
+                    <span className="text-xs font-bold text-[#10b981] bg-green-50 px-2 py-1 rounded shrink-0">{p.price}฿</span>
                   </button>
                 ))}
               </div>
@@ -1786,6 +1881,9 @@ export default function Home() {
               ) : (
                 billItems.map((item, idx) => (
                   <div key={idx} className="flex gap-2 mb-2 items-center bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                    {item.image && (
+                      <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded border border-gray-200 shrink-0" />
+                    )}
                     <div className="flex-1">
                       <p className="text-xs font-bold text-gray-800">{item.name}</p>
                       <p className="text-[10px] text-gray-500">ราคา {item.price} ฿</p>
