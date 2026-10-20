@@ -613,25 +613,44 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+
   const handleAddProductDB = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProdName || !newProdPrice) return;
-    const res = await fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newProdName, price: Number(newProdPrice), stock: Number(newProdStock) || 0, image: newProdImage, weight: Number(newProdWeight) || 0 })
-    });
-    if (res.ok) {
-      setNewProdName(''); setNewProdPrice(''); setNewProdStock(''); setNewProdImage(''); setNewProdWeight('');
-      fetch('/api/products').then(r => r.json()).then(setProducts);
+    setIsSubmittingProduct(true);
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newProdName, price: Number(newProdPrice), stock: Number(newProdStock) || 0, image: newProdImage, weight: Number(newProdWeight) || 0 })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNewProdName(''); setNewProdPrice(''); setNewProdStock(''); setNewProdImage(''); setNewProdWeight('');
+        fetch('/api/products').then(r => r.json()).then(setProducts);
+      } else {
+        alert('ไม่สามารถเพิ่มสินค้าได้: ' + (data.error || 'กรุณาลองใหม่อีกครั้ง'));
+      }
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
+    } finally {
+      setIsSubmittingProduct(false);
     }
   };
 
   const handleDeleteProductDB = async (id: string) => {
     if (!confirm('ยืนยันการลบสินค้านี้?')) return;
-    const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      fetch('/api/products').then(r => r.json()).then(setProducts);
+    try {
+      const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetch('/api/products').then(r => r.json()).then(setProducts);
+      } else {
+        alert('ไม่สามารถลบสินค้าได้: ' + (data.error || 'กรุณาลองใหม่อีกครั้ง'));
+      }
+    } catch (err: any) {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ: ' + err.message);
     }
   };
 
@@ -1481,8 +1500,17 @@ export default function Home() {
                   <label className="text-[11px] text-gray-700 font-semibold block mb-1">น้ำหนัก (กรัม)</label>
                   <input required value={newProdWeight} onChange={e=>setNewProdWeight(e.target.value)} type="number" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs" placeholder="0" />
                 </div>
-                <button type="submit" className="bg-[#4f46e5] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-600 h-[38px] flex items-center transition-colors">
-                  <i className="fa-solid fa-plus mr-2"></i> เพิ่ม
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingProduct}
+                  className="bg-[#4f46e5] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-indigo-600 h-[38px] flex items-center transition-colors disabled:bg-indigo-300"
+                >
+                  {isSubmittingProduct ? (
+                    <i className="fa-solid fa-circle-notch fa-spin mr-2"></i>
+                  ) : (
+                    <i className="fa-solid fa-plus mr-2"></i>
+                  )}
+                  {isSubmittingProduct ? 'กำลังบันทึก...' : 'เพิ่ม'}
                 </button>
               </form>
             </div>

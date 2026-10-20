@@ -9,21 +9,20 @@ export const revalidate = 0;
 export async function GET() {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
+      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false });
+      if (!error && data) {
         return NextResponse.json(data);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Supabase get products error:', e);
+    }
   }
 
   const filePath = path.join(process.cwd(), 'data', 'products.json');
   if (!fs.existsSync(filePath)) {
     const defaultProducts = [
-      { id: 'P001', name: 'เสื้อยืด Minimal สีดำ', price: 250, stock: 50, image: '', weight: 150 },
-      { id: 'P002', name: 'เสื้อยืด Minimal สีขาว', price: 250, stock: 30, image: '', weight: 150 },
       { id: 'P003', name: 'สร้อยเงินแท้ 92.5%', price: 590, stock: 15, image: '', weight: 50 },
     ];
-    try { fs.writeFileSync(filePath, JSON.stringify(defaultProducts, null, 2)); } catch(e){}
     return NextResponse.json(defaultProducts);
   }
   
@@ -41,12 +40,21 @@ export async function POST(request: Request) {
     product.id = product.id || 'P' + Date.now().toString().slice(-4);
 
     if (supabase) {
-      try {
-        const { error } = await supabase.from('products').insert([product]);
-        if (!error) {
-          return NextResponse.json({ success: true, product });
-        }
-      } catch (sErr) {}
+      const { data, error } = await supabase.from('products').insert([{
+        id: product.id,
+        name: product.name,
+        price: Number(product.price) || 0,
+        stock: Number(product.stock) || 0,
+        image: product.image || '',
+        weight: Number(product.weight) || 0
+      }]).select();
+
+      if (!error && data) {
+        return NextResponse.json({ success: true, product: data[0] });
+      } else if (error) {
+        console.error('Supabase product insert error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
     }
 
     const filePath = path.join(process.cwd(), 'data', 'products.json');
@@ -60,8 +68,8 @@ export async function POST(request: Request) {
     } catch (fErr) {}
 
     return NextResponse.json({ success: true, product });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to add product' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to add product' }, { status: 500 });
   }
 }
 
@@ -71,12 +79,12 @@ export async function DELETE(request: Request) {
     const id = searchParams.get('id');
 
     if (supabase && id) {
-      try {
-        const { error } = await supabase.from('products').delete().eq('id', id);
-        if (!error) {
-          return NextResponse.json({ success: true });
-        }
-      } catch (sErr) {}
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (!error) {
+        return NextResponse.json({ success: true });
+      } else {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
     }
 
     const filePath = path.join(process.cwd(), 'data', 'products.json');
@@ -89,7 +97,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to delete' }, { status: 500 });
   }
 }
