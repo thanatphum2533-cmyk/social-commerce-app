@@ -677,6 +677,117 @@ export default function Home() {
   // --- Profile Menu State ---
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
+  // --- Interactive Tour (Onboarding) State ---
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourRect, setTourRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  const tourSteps = useMemo(() => [
+    {
+      tab: 'dashboard' as const,
+      targetId: 'tour-nav-dashboard',
+      title: '⚡ ภาพรวมระบบ (Dashboard)',
+      desc: 'ดูภาพรวมข้อความทั้งหมด สินค้าในคลัง ยอดขายสะสม ทีมแอดมินที่กำลังออนไลน์ และดาวน์โหลดไฟล์ที่อยู่จัดส่ง (Excel) ได้จากหน้านี้'
+    },
+    {
+      tab: 'chats' as const,
+      targetId: 'tour-nav-chats',
+      title: '💬 ระบบแชทลูกค้า (Inbox)',
+      desc: 'ศูนย์รวมแชทจากเพจ Facebook แยกตามรายชื่อลูกค้า สามารถกด "ซิงค์แชทเก่า" เพื่อดึงข้อความย้อนหลังเข้าสู่ระบบได้ทันที'
+    },
+    {
+      tab: 'chats' as const,
+      targetId: 'tour-btn-bill',
+      title: '🧾 ปุ่มสร้างบิล / สรุปยอด',
+      desc: 'กดเพื่อเลือกสินค้าจากคลัง ระบบจะคำนวณค่าจัดส่งตามน้ำหนักให้อัตโนมัติ พร้อมแนบเลขที่บัญชีธนาคารส่งเข้าแชทลูกค้าในคลิกเดียว'
+    },
+    {
+      tab: 'chats' as const,
+      targetId: 'tour-customer-panel',
+      title: '📦 ดึงที่อยู่อัตโนมัติ & พิมพ์ใบปะหน้า',
+      desc: 'อัปเดตสถานะโอนเงิน ติดแท็กลูกค้า กดให้ AI ดึงเบอร์โทร/ที่อยู่จากแชทอัตโนมัติ และกดพิมพ์ใบจ่าหน้าพัสดุได้ทันที'
+    },
+    {
+      tab: 'products' as const,
+      targetId: 'tour-nav-products',
+      title: '📦 คลังสินค้า (Inventory)',
+      desc: 'เพิ่มและจัดการรายการสินค้า อัปโหลดรูปภาพจากเครื่อง กำหนดรหัสสินค้า ราคา สต็อก และน้ำหนัก (กรัม) สำหรับคำนวณค่าขนส่ง'
+    },
+    {
+      tab: 'analytics' as const,
+      targetId: 'tour-nav-analytics',
+      title: '📊 สถิติยอดขาย & ผลงานแอดมิน (KPI)',
+      desc: 'ดูสรุปยอดขายรวม ตารางจัดอันดับผลงานแอดมินแต่ละคน และส่งออกรายงานเป็นไฟล์ CSV/Excel'
+    },
+    {
+      tab: 'customers' as const,
+      targetId: 'tour-nav-customers',
+      title: '👥 ฐานข้อมูลลูกค้า (CRM)',
+      desc: 'ดูรายชื่อลูกค้าทั้งหมดที่เคยทักเพจ พร้อมส่งออกข้อมูลลูกค้าเป็นไฟล์ CSV'
+    },
+    {
+      tab: (loggedInUser?.role === 'admin' ? 'settings' : 'dashboard') as 'settings' | 'dashboard',
+      targetId: 'tour-btn-menu',
+      title: '⚙️ ตั้งค่าระบบ & จัดการทีมแอดมิน',
+      desc: 'กดเมนูด้านล่างเพื่อตั้งค่าเชื่อมต่อเพจ Facebook, แก้ไขข้อมูลร้านค้า/เลขบัญชีธนาคาร, ตั้งค่าบอทต้อนรับ และเพิ่ม/ลบแอดมิน'
+    }
+  ], [loggedInUser?.role]);
+
+  // เปิด Interactive Tour อัตโนมัติเมื่อเข้าใช้งานครั้งแรก
+  useEffect(() => {
+    if (!loggedInUser) return;
+    const done = localStorage.getItem('crm_tour_done');
+    if (!done) {
+      const timer = setTimeout(() => {
+        setTourStep(0);
+        setIsTourOpen(true);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [loggedInUser]);
+
+  // สลับแท็บและคำนวณตำแหน่งปุ่มที่ต้องการไฮไลท์ในแต่ละขั้นตอน
+  useEffect(() => {
+    if (!isTourOpen) return;
+    const step = tourSteps[tourStep];
+    if (!step) return;
+
+    setActiveTab(step.tab);
+    setIsProfileMenuOpen(false);
+
+    const updateRect = () => {
+      const el = document.getElementById(step.targetId);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setTourRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+      } else {
+        setTourRect(null);
+      }
+    };
+
+    const t1 = setTimeout(updateRect, 80);
+    const t2 = setTimeout(updateRect, 250);
+    window.addEventListener('resize', updateRect);
+    window.addEventListener('scroll', updateRect, true);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', updateRect);
+      window.removeEventListener('scroll', updateRect, true);
+    };
+  }, [isTourOpen, tourStep, tourSteps]);
+
+  const startTour = () => {
+    setIsProfileMenuOpen(false);
+    setTourStep(0);
+    setIsTourOpen(true);
+  };
+
+  const closeTour = () => {
+    setIsTourOpen(false);
+    localStorage.setItem('crm_tour_done', 'true');
+  };
+
   // --- คำนวณสถิติแอดมิน ---
   const adminStats = useMemo(() => {
     const stats: Record<string, { sales: number, replies: number, ordersCount: number }> = {};
@@ -760,43 +871,63 @@ export default function Home() {
       {/* 1. แถบเมนูซ้ายสุด */}
       <div className="w-[68px] bg-[#312e81] flex flex-col items-center py-4 text-white shrink-0 z-20 relative">
         <div 
+          id="tour-nav-dashboard"
           onClick={() => setActiveTab('dashboard')}
+          title="ภาพรวมระบบ (Dashboard)"
           className={`w-11 h-11 bg-white text-[#312e81] rounded-xl flex items-center justify-center font-black text-2xl mb-8 shadow-sm cursor-pointer hover:bg-gray-100 transition-colors ${activeTab === 'dashboard' ? 'ring-4 ring-indigo-400/50' : ''}`}
         >
           <i className="fa-solid fa-bolt"></i>
         </div>
         
         <div 
+          id="tour-nav-chats"
           onClick={() => setActiveTab('chats')}
+          title="แชทลูกค้า (Inbox)"
           className={`w-full py-4 flex justify-center cursor-pointer text-xl transition-all ${activeTab === 'chats' ? 'border-l-4 border-white bg-white/10 opacity-100' : 'opacity-50 hover:bg-white/5'}`}
         >
           <i className="fa-solid fa-message"></i>
         </div>
         
         <div 
+          id="tour-nav-products"
           onClick={() => setActiveTab('products')}
+          title="คลังสินค้า (Inventory)"
           className={`w-full py-4 flex justify-center cursor-pointer text-xl transition-all ${activeTab === 'products' ? 'border-l-4 border-white bg-white/10 opacity-100' : 'opacity-50 hover:bg-white/5'}`}
         >
           <i className="fa-solid fa-box-open"></i>
         </div>
         
         <div 
+          id="tour-nav-analytics"
           onClick={() => setActiveTab('analytics')}
+          title="สถิติและรายงาน (Analytics)"
           className={`w-full py-4 flex justify-center cursor-pointer text-xl transition-all ${activeTab === 'analytics' ? 'border-l-4 border-white bg-white/10 opacity-100' : 'opacity-50 hover:bg-white/5'}`}
         >
           <i className="fa-solid fa-chart-pie"></i>
         </div>
         
         <div 
+          id="tour-nav-customers"
           onClick={() => setActiveTab('customers')}
+          title="ฐานข้อมูลลูกค้า (CRM)"
           className={`w-full py-4 flex justify-center cursor-pointer text-xl transition-all ${activeTab === 'customers' ? 'border-l-4 border-white bg-white/10 opacity-100' : 'opacity-50 hover:bg-white/5'}`}
         >
           <i className="fa-solid fa-users"></i>
         </div>
         
-        {/* เมนู 3 ขีด (Hamburger Menu) ด้านล่างสุด */}
-        <div className="mt-auto relative w-full flex justify-center">
+        {/* ปุ่มสอนใช้งาน (Interactive Tour) + เมนู 3 ขีด ด้านล่างสุด */}
+        <div className="mt-auto relative w-full flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onClick={startTour}
+            title="แนะนำการใช้งานระบบ (Interactive Tour)"
+            className="w-9 h-9 rounded-full bg-indigo-500/30 hover:bg-indigo-400/50 text-indigo-100 flex items-center justify-center cursor-pointer text-sm transition-all border border-indigo-400/30"
+          >
+            <i className="fa-solid fa-circle-question"></i>
+          </button>
+
           <div 
+            id="tour-btn-menu"
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className={`w-11 h-11 rounded-full flex items-center justify-center cursor-pointer text-xl transition-all ${isProfileMenuOpen ? 'bg-white text-[#312e81]' : 'bg-white/10 text-white hover:bg-white/20'}`}
           >
@@ -811,6 +942,13 @@ export default function Home() {
                 <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mt-0.5">{loggedInUser.role === 'admin' ? 'Super Admin' : 'Staff'}</p>
               </div>
               
+              <button 
+                onClick={startTour}
+                className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-indigo-600 text-sm font-bold flex items-center gap-3 transition-colors"
+              >
+                <i className="fa-solid fa-wand-magic-sparkles w-4"></i> สอนใช้งานระบบ (Tour)
+              </button>
+
               {loggedInUser.role === 'admin' && (
                 <button 
                   onClick={() => { setActiveTab('settings'); setIsProfileMenuOpen(false); }}
@@ -820,7 +958,7 @@ export default function Home() {
                 </button>
               )}
               
-              {loggedInUser.role === 'admin' && <div className="h-[1px] bg-gray-100 my-1"></div>}
+              <div className="h-[1px] bg-gray-100 my-1"></div>
               
               <button 
                 onClick={handleLogout}
@@ -1267,6 +1405,7 @@ export default function Home() {
           <div className="w-[300px] bg-white border-l border-gray-200 flex flex-col shrink-0 overflow-y-auto z-10">
             <div className="p-4 border-b border-gray-100">
               <button 
+                id="tour-btn-bill"
                 onClick={() => setIsBillModalOpen(true)}
                 className="w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-md transition-colors"
               >
@@ -1274,7 +1413,7 @@ export default function Home() {
               </button>
             </div>
             
-            <div className="p-4 border-b border-gray-100">
+            <div id="tour-customer-panel" className="p-4 border-b border-gray-100">
               <h3 className="font-bold text-gray-800 flex items-center gap-2 text-sm mb-3">
                 <i className="fa-solid fa-address-card text-[#4f46e5]"></i> ข้อมูลลูกค้า
               </h3>
@@ -2164,6 +2303,128 @@ export default function Home() {
                 .fixed.inset-0 { position: absolute; left: 0; top: 0; background: transparent; }
               }
             `}} />
+          </div>
+        );
+      })()}
+
+      {/* 7. Interactive Spotlight Tour Overlay */}
+      {isTourOpen && (() => {
+        const current = tourSteps[tourStep];
+        if (!current) return null;
+
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        let cardLeft = Math.max(20, (vw - 360) / 2);
+        let cardTop = Math.max(20, (vh - 240) / 2);
+
+        if (tourRect) {
+          const isLeftHalf = tourRect.left < vw / 2;
+          if (isLeftHalf) {
+            cardLeft = Math.min(vw - 360, tourRect.left + tourRect.width + 20);
+          } else {
+            cardLeft = Math.max(20, tourRect.left - 360);
+          }
+          cardTop = Math.max(20, Math.min(vh - 250, tourRect.top - 8));
+        }
+
+        return (
+          <div className="fixed inset-0 z-[200] pointer-events-auto">
+            {/* พื้นหลังมืด + กรอบ Spotlight ไฮไลท์ปุ่มจริง */}
+            {tourRect ? (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: tourRect.top - 6,
+                  left: tourRect.left - 6,
+                  width: tourRect.width + 12,
+                  height: tourRect.height + 12,
+                  boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.72)',
+                  borderRadius: '14px',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                  pointerEvents: 'none',
+                }}
+                className="ring-4 ring-indigo-400 ring-offset-2 ring-offset-transparent animate-pulse"
+              />
+            ) : (
+              <div className="fixed inset-0 bg-slate-900/70" />
+            )}
+
+            {/* กล่องคำอธิบายขั้นตอน (Tooltip Card) */}
+            <div
+              style={{
+                position: 'fixed',
+                top: cardTop,
+                left: cardLeft,
+                width: '340px',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              className="bg-white rounded-2xl shadow-2xl border border-indigo-100 p-5 text-gray-800 z-[201]"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <span className="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                  ขั้นตอนที่ {tourStep + 1} / {tourSteps.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={closeTour}
+                  className="text-xs text-gray-400 hover:text-gray-600 font-semibold cursor-pointer"
+                >
+                  ข้าม (Skip) ✕
+                </button>
+              </div>
+
+              <h3 className="font-bold text-base text-gray-900 mb-1.5">{current.title}</h3>
+              <p className="text-xs text-gray-600 leading-relaxed mb-4">{current.desc}</p>
+
+              {/* จุดบอกความคืบหน้า */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <div className="flex gap-1.5">
+                  {tourSteps.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setTourStep(idx)}
+                      className={`h-2 rounded-full transition-all cursor-pointer ${
+                        idx === tourStep ? 'w-5 bg-[#4f46e5]' : 'w-2 bg-gray-200 hover:bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  {tourStep > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTourStep(tourStep - 1)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-xs font-bold cursor-pointer"
+                    >
+                      ย้อนกลับ
+                    </button>
+                  )}
+                  {tourStep < tourSteps.length - 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => setTourStep(tourStep + 1)}
+                      className="px-4 py-1.5 rounded-lg bg-[#4f46e5] hover:bg-indigo-600 text-white text-xs font-bold shadow-sm cursor-pointer"
+                    >
+                      ถัดไป &rarr;
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('dashboard');
+                        closeTour();
+                      }}
+                      className="px-4 py-1.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-white text-xs font-bold shadow-sm cursor-pointer"
+                    >
+                      เริ่มใช้งานเลย! 🎉
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         );
       })()}
