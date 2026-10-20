@@ -1,37 +1,35 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 
-const filePath = path.join(process.cwd(), 'data', 'ping.json');
+export const dynamic = 'force-dynamic';
+
+// เก็บใน Server Memory สำหรับสถานะออนไลน์ Real-time (ไม่พึ่งพาไฟล์ disk)
+const onlineMap = new Map<string, number>();
 
 export async function GET() {
-  let db: Record<string, number> = {};
-  if (fs.existsSync(filePath)) {
-    try {
-      db = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    } catch(e){}
-  }
-  
-  // กรองเฉพาะคนที่ ping ล่าสุดไม่เกิน 15 วินาที
   const now = Date.now();
-  const onlineAdmins = Object.keys(db).filter(name => now - db[name] < 15000);
+  const onlineAdmins: string[] = [];
   
-  return NextResponse.json({ online: onlineAdmins });
+  onlineMap.forEach((lastSeen, name) => {
+    if (now - lastSeen < 20000) { // 20 วินาที
+      onlineAdmins.push(name);
+    } else {
+      onlineMap.delete(name);
+    }
+  });
+
+  return NextResponse.json({ online: onlineAdmins }, {
+    headers: {
+      'Cache-Control': 'no-store, max-age=0'
+    }
+  });
 }
 
 export async function POST(request: Request) {
   try {
     const { adminName } = await request.json();
-    let db: Record<string, number> = {};
-    if (fs.existsSync(filePath)) {
-      try {
-        db = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      } catch(e){}
+    if (adminName) {
+      onlineMap.set(adminName, Date.now());
     }
-    
-    db[adminName] = Date.now();
-    fs.writeFileSync(filePath, JSON.stringify(db));
-    
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
