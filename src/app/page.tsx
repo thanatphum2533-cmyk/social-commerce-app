@@ -661,12 +661,6 @@ export default function Home() {
               เข้าสู่ระบบ
             </button>
           </div>
-          
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg w-full">
-            <p className="text-[10px] text-blue-800 font-bold mb-1"><i className="fa-solid fa-circle-info mr-1"></i>ข้อมูลแอดมินทดสอบ:</p>
-            <p className="text-[10px] text-blue-600 mb-0.5">• พี่บอย (เจ้าของร้าน): user=<b>boy</b> pass=<b>123</b></p>
-            <p className="text-[10px] text-blue-600">• น้องเจน (แอดมิน): user=<b>jane</b> pass=<b>456</b></p>
-          </div>
         </div>
       </div>
     );
