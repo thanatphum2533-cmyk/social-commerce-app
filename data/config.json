@@ -1,0 +1,24 @@
+{
+  "pageId": "101501528874058",
+  "pageName": "Arisa Jewelry สร้อยเงินแท้ 92.5%",
+  "accessToken": "EAAPADIvJrcYBSyD75L4B2aqSnKixAQp6mAoclF9bvhDsm9QkECGg6ZBoJrsvjflmrFQimXcUxYACn6zfQDaZBWL0a6wfi8lUVzkAmvXnuKuelWLY3FokA2ZCAK6ZAtLZAbTusAycTvlGYZAb1QdxuvfQm7lCER6Glc7TU4qFviB8E9wZAZBCrzUiMra9mSAxNUeTyUwZD",
+  "verifyToken": "my_custom_secret_token_12345",
+  "appId": "1055585047522758",
+  "appSecret": "6765d46e74a85b66d26214f631e522c9",
+  "shippingOptions": [
+    {
+      "id": "flash",
+      "name": "Flash Express",
+      "baseRate": 35,
+      "addRate": 10,
+      "freeShipping": 0
+    },
+    {
+      "id": "kerry",
+      "name": "Kerry Express",
+      "baseRate": 45,
+      "addRate": 15,
+      "freeShipping": 0
+    }
+  ]
+}

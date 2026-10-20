@@ -1,0 +1,20 @@
+{
+  "admin": {
+    "id": "admin",
+    "username": "admin",
+    "password": "admin999",
+    "name": "ผู้ดูแลระบบ",
+    "role": "admin",
+    "avatar": "https://i.pravatar.cc/150?img=11",
+    "createdAt": "2026-10-08T07:28:45.014Z"
+  },
+  "admin2": {
+    "id": "admin2",
+    "username": "admin2",
+    "password": "admin999",
+    "name": "Jeab",
+    "role": "staff",
+    "avatar": "https://i.pravatar.cc/150?u=admin2",
+    "createdAt": "2026-10-08T10:10:52.115Z"
+  }
+}
