@@ -569,6 +569,7 @@ export default function Home() {
     }
   };
 
+  const [newProdId, setNewProdId] = useState('');
   const [newProdName, setNewProdName] = useState('');
   const [newProdPrice, setNewProdPrice] = useState('');
   const [newProdStock, setNewProdStock] = useState('');
@@ -623,11 +624,18 @@ export default function Home() {
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newProdName, price: Number(newProdPrice), stock: Number(newProdStock) || 0, image: newProdImage, weight: Number(newProdWeight) || 0 })
+        body: JSON.stringify({ 
+          id: newProdId.trim() || undefined,
+          name: newProdName.trim(), 
+          price: Number(newProdPrice), 
+          stock: Number(newProdStock) || 0, 
+          image: newProdImage, 
+          weight: Number(newProdWeight) || 0 
+        })
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setNewProdName(''); setNewProdPrice(''); setNewProdStock(''); setNewProdImage(''); setNewProdWeight('');
+        setNewProdId(''); setNewProdName(''); setNewProdPrice(''); setNewProdStock(''); setNewProdImage(''); setNewProdWeight('');
         fetch('/api/products').then(r => r.json()).then(setProducts);
       } else {
         alert('ไม่สามารถเพิ่มสินค้าได้: ' + (data.error || 'กรุณาลองใหม่อีกครั้ง'));
@@ -1440,6 +1448,16 @@ export default function Home() {
                 เพิ่มสินค้าใหม่
               </div>
               <form onSubmit={handleAddProductDB} className="p-4 flex flex-wrap gap-3 items-end">
+                <div className="w-32">
+                  <label className="text-[11px] text-gray-700 font-semibold block mb-1">รหัสสินค้า</label>
+                  <input 
+                    value={newProdId} 
+                    onChange={e=>setNewProdId(e.target.value)} 
+                    type="text" 
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs uppercase font-mono" 
+                    placeholder="เช่น P001" 
+                  />
+                </div>
                 <div className="flex-1 min-w-[150px]">
                   <label className="text-[11px] text-gray-700 font-semibold block mb-1">ชื่อสินค้า</label>
                   <input required value={newProdName} onChange={e=>setNewProdName(e.target.value)} type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 bg-white outline-none focus:ring-2 focus:ring-[#4f46e5] focus:border-transparent transition-all shadow-xs" placeholder="เช่น กระเป๋าสะพาย" />

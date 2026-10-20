@@ -9,7 +9,7 @@ export const revalidate = 0;
 export async function GET() {
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false });
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (!error && data) {
         return NextResponse.json(data);
       }
@@ -53,6 +53,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, product: data[0] });
       } else if (error) {
         console.error('Supabase product insert error:', error);
+        if (error.code === '23505') {
+          return NextResponse.json({ error: `รหัสสินค้า "${product.id}" มีอยู่ในระบบแล้ว กรุณาใช้รหัสอื่น` }, { status: 400 });
+        }
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     }
