@@ -1806,10 +1806,32 @@ export default function Home() {
                   <textarea 
                     className="w-full bg-white text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg p-3 text-sm focus:ring-1 focus:ring-[#4f46e5] outline-none" 
                     rows={3}
-                    defaultValue="สวัสดีครับ ร้านอริสา จิวเวลรี่ ยินดีให้บริการครับ 🙏 สนใจสินค้าชิ้นไหนส่งรูปมาสอบถามได้เลยนะครับ"
+                    value={appConfig.welcomeMessage ?? "สวัสดีครับ ร้านอริสา จิวเวลรี่ ยินดีให้บริการครับ 🙏 สนใจสินค้าชิ้นไหนส่งรูปมาสอบถามได้เลยนะครับ"}
+                    onChange={(e) => setAppConfig({ ...appConfig, welcomeMessage: e.target.value })}
                   />
                 </div>
-                <button className="bg-[#4f46e5] text-white px-4 py-2 rounded-lg text-xs font-bold">บันทึกการตั้งค่า</button>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(appConfig)
+                      });
+                      if (res.ok) {
+                        alert('บันทึกการตั้งค่าบอทเรียบร้อยแล้ว!');
+                      } else {
+                        alert('บันทึกการตั้งค่าไม่สำเร็จ');
+                      }
+                    } catch {
+                      alert('เกิดข้อผิดพลาดในการบันทึก');
+                    }
+                  }}
+                  className="bg-[#4f46e5] hover:bg-indigo-600 transition-colors cursor-pointer text-white px-4 py-2 rounded-lg text-xs font-bold"
+                >
+                  บันทึกการตั้งค่า
+                </button>
               </div>
             </div>
 
@@ -1823,7 +1845,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="p-6">
-                <form onSubmit={handleCreateUser} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <form onSubmit={handleCreateUser} className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 mb-1">Username *</label>
                     <input type="text" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#4f46e5]" placeholder="เช่น admin_2" required />
@@ -1836,8 +1858,15 @@ export default function Home() {
                     <label className="block text-[10px] font-bold text-gray-500 mb-1">ชื่อที่แสดง</label>
                     <input type="text" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#4f46e5]" placeholder="เช่น น้องเจน" />
                   </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1">สิทธิ์ (Role)</label>
+                    <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="w-full bg-white text-gray-900 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#4f46e5]">
+                      <option value="admin">ADMIN (แอดมิน)</option>
+                      <option value="staff">STAFF (พนักงาน)</option>
+                    </select>
+                  </div>
                   <div className="flex items-end">
-                    <button type="submit" className="w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2">
+                    <button type="submit" className="w-full bg-[#10b981] hover:bg-[#059669] text-white font-bold py-2 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer">
                       <i className="fa-solid fa-plus"></i> เพิ่มพนักงาน
                     </button>
                   </div>
@@ -1855,7 +1884,7 @@ export default function Home() {
                     </thead>
                     <tbody className="text-sm">
                       {Object.values(systemUsers).map((u: any) => (
-                        <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <tr key={u.id || u.username} className="border-b border-gray-50 hover:bg-gray-50">
                           <td className="p-3 font-bold text-gray-800 flex items-center gap-2">
                             <img src={u.avatar} className="w-6 h-6 rounded-full" />
                             {u.name}
@@ -1863,12 +1892,12 @@ export default function Home() {
                           <td className="p-3 text-gray-600">{u.username}</td>
                           <td className="p-3">
                             <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${u.role === 'admin' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-600'}`}>
-                              {u.role.toUpperCase()}
+                              {(u.role || 'staff').toUpperCase()}
                             </span>
                           </td>
                           <td className="p-3 text-right">
-                            {u.id !== 'admin' && (
-                              <button onClick={() => handleDeleteUser(u.id)} className="text-red-500 hover:text-red-700 text-xs font-bold">
+                            {(u.id || u.username) !== 'admin' && (
+                              <button type="button" onClick={() => handleDeleteUser(u.id || u.username)} className="text-red-500 hover:text-red-700 text-xs font-bold cursor-pointer">
                                 ลบ
                               </button>
                             )}
