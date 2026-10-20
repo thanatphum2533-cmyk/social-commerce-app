@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { loadConfig, saveConfigData } from '../../../config/route';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
-  const configPath = path.join(process.cwd(), 'data', 'config.json');
-  let config: any = {};
-  if (fs.existsSync(configPath)) {
-    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  }
+  const config = loadConfig();
 
   const host = req.headers.get('host') || 'localhost:3001';
   const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
@@ -44,14 +39,14 @@ export async function GET(req: Request) {
 
     if (accountsData.data && accountsData.data.length > 0) {
       // Pick the first page or match pageId
-      let page = accountsData.data.find((p: any) => p.id === config.pageId) || accountsData.data[0];
+      const page = accountsData.data.find((p: any) => p.id === config.pageId) || accountsData.data[0];
 
       // 3. Save new Page Access Token (Never expires for pages managed by admin)
-      config.pageId = page.id;
-      config.pageName = page.name;
-      config.accessToken = page.access_token;
-
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+      saveConfigData({
+        pageId: page.id,
+        pageName: page.name,
+        accessToken: page.access_token
+      });
 
       return NextResponse.redirect(`${proto}://${host}?fb_login=success&page=${encodeURIComponent(page.name)}`);
     } else {

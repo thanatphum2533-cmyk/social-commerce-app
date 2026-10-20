@@ -102,7 +102,8 @@ export default function Home() {
     if (type === 'sales') {
       rows = [["รหัสออเดอร์", "ลูกค้า", "แอดมิน", "ยอดรวม (บาท)", "สถานะ", "วันที่"]];
       orders.forEach(o => {
-        const orderDateStr = o.createdAt ? new Date(o.createdAt).toISOString().slice(0, 10) : "";
+        const rawDate = o.createdAt || o.date;
+        const orderDateStr = rawDate ? new Date(rawDate).toISOString().slice(0, 10) : "";
         if (exportStartDate && orderDateStr < exportStartDate) return;
         if (exportEndDate && orderDateStr > exportEndDate) return;
         rows.push([o.id, `"${o.customerName}"`, o.adminName || 'ระบบ', o.total.toString(), o.status, orderDateStr]);
@@ -515,8 +516,8 @@ export default function Home() {
   };
 
   const handleSendBill = async () => {
-    const lastCustomerMsg = [...messages].reverse().find(m => m.isCustomer && m.senderId);
-    if (!lastCustomerMsg) return alert("ไม่มีลูกค้าให้ส่งบิลครับ");
+    const targetCustomerId = activeCustomerId;
+    if (!targetCustomerId) return alert("ไม่มีลูกค้าให้ส่งบิลครับ");
     if (billItems.length === 0) return alert("กรุณาเลือกสินค้าอย่างน้อย 1 ชิ้นครับ");
 
     let billText = `🧾 สรุปยอดสั่งซื้อ\n`;
@@ -535,7 +536,7 @@ export default function Home() {
       const res = await fetch('/api/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId: lastCustomerMsg.senderId, text: billText, adminName: loggedInUser.name })
+        body: JSON.stringify({ recipientId: targetCustomerId, text: billText, adminName: loggedInUser.name })
       });
       if (res.ok) {
         // 2. บันทึกออเดอร์ลงฐานข้อมูล
@@ -543,8 +544,8 @@ export default function Home() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            customerName: lastCustomerMsg.senderName || 'ลูกค้าจาก Facebook',
-            customerId: lastCustomerMsg.senderId,
+            customerName: activeCustomerInfo.senderName || 'ลูกค้าจาก Facebook',
+            customerId: targetCustomerId,
             items: billItems,
             shippingFee: shippingFee,
             courier: selectedCourier,
@@ -1349,8 +1350,8 @@ export default function Home() {
               })()}
 
                 {/* --- ส่วนกรอกที่อยู่จัดส่ง --- */}
-                {messages.length > 0 && messages.find(m => m.isCustomer && m.senderId) && (() => {
-                  const customerId = [...messages].reverse().find(m => m.isCustomer && m.senderId)?.senderId;
+                {activeCustomerId && (() => {
+                  const customerId = activeCustomerId;
                   const currentInfo = customersInfo[customerId] || { phone: '', address: '' };
                   
                   const handleAutoExtract = () => {
@@ -1592,7 +1593,7 @@ export default function Home() {
                   <i className="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
                   <input type="text" placeholder="ค้นหาชื่อลูกค้า..." className="w-full bg-white border border-gray-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#4f46e5]" />
                 </div>
-                <button className="text-xs bg-[#4f46e5] text-white px-3 py-1.5 rounded-lg font-bold"><i className="fa-solid fa-download mr-1"></i> Export CSV</button>
+                <button onClick={handleExportCSV} className="text-xs bg-[#4f46e5] hover:bg-indigo-600 transition-colors cursor-pointer text-white px-3 py-1.5 rounded-lg font-bold"><i className="fa-solid fa-download mr-1"></i> Export CSV</button>
               </div>
               <table className="w-full text-left">
                 <thead className="bg-white text-gray-500 text-xs uppercase border-b border-gray-200">
@@ -2026,9 +2027,8 @@ export default function Home() {
       )}
 
       {/* 6. Modal สำหรับพิมพ์จ่าหน้าพัสดุ (Print Label) */}
-      {isPrintingLabel && messages.length > 0 && messages.find(m => m.isCustomer && m.senderId) && (() => {
-        const lastCustomerMsg = [...messages].reverse().find(m => m.isCustomer && m.senderId);
-        const currentInfo = customersInfo[lastCustomerMsg?.senderId] || {};
+      {isPrintingLabel && activeCustomerId && (() => {
+        const currentInfo = customersInfo[activeCustomerId] || {};
         
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm print:bg-white print:backdrop-blur-none">
@@ -2062,7 +2062,7 @@ export default function Home() {
               {/* ผู้รับ */}
               <div className="p-6 text-black" style={{ backgroundColor: 'white', color: 'black' }}>
                 <p className="text-xs font-bold text-black uppercase tracking-widest mb-2 border-b-2 border-black inline-block pb-1" style={{ color: 'black', borderColor: 'black' }}>ผู้รับ (Receiver)</p>
-                <p className="font-black text-xl mb-3 text-black" style={{ color: 'black' }}>{lastCustomerMsg?.senderName}</p>
+                <p className="font-black text-xl mb-3 text-black" style={{ color: 'black' }}>{activeCustomerInfo.senderName}</p>
                 <p className="text-base leading-relaxed whitespace-pre-wrap font-medium text-black" style={{ color: 'black' }}>{currentInfo.address}</p>
                 
                 <div className="mt-6 flex items-center gap-3 bg-white border-2 border-black print:bg-transparent print:border-2 print:border-black p-3 rounded-lg text-black" style={{ backgroundColor: 'white', borderColor: 'black' }}>

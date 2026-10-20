@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { supabase } from '@/app/lib/supabase';
+import { loadConfig } from '../config/route';
+import { getCustomersInfoMap, saveCustomersInfoMap } from '../customers_info/route';
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const configPath = path.join(process.cwd(), 'data', 'config.json');
-    if (!fs.existsSync(configPath)) {
-      return NextResponse.json({ error: 'Config not found' }, { status: 400 });
-    }
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const config = loadConfig();
     const token = config.accessToken;
     const pageId = config.pageId;
 
@@ -17,7 +16,6 @@ export async function POST(req: Request) {
     }
 
     // 1. Fetch conversations from Facebook Graph API
-    // Limit to recent 25 conversations, each with up to 50 messages
     const convUrl = `https://graph.facebook.com/v19.0/me/conversations?fields=id,updated_time,participants,messages.limit(50){id,message,created_time,from,attachments}&limit=25&access_token=${token}`;
     const convRes = await fetch(convUrl);
     const convData = await convRes.json();
@@ -34,27 +32,19 @@ export async function POST(req: Request) {
     if (fs.existsSync(messagesPath)) {
       try {
         existingMsgs = JSON.parse(fs.readFileSync(messagesPath, 'utf8'));
-      } catch (e) {
+      } catch {
         existingMsgs = [];
       }
     }
 
-    const customersPath = path.join(process.cwd(), 'data', 'customers_info.json');
-    let customersInfo: any = {};
-    if (fs.existsSync(customersPath)) {
-      try {
-        customersInfo = JSON.parse(fs.readFileSync(customersPath, 'utf8'));
-      } catch (e) {
-        customersInfo = {};
-      }
-    }
+    const customersInfo: Record<string, any> = { ...getCustomersInfoMap() };
 
     let importedCount = 0;
     const existingMsgIds = new Set(existingMsgs.map((m: any) => m.mid || m.id));
+    const newSupabaseRows: any[] = [];
 
     // Iterate over conversations
     for (const conv of conversations) {
-      // Find the customer participant (not the page itself)
       const participants = conv.participants?.data || [];
       const customer = participants.find((p: any) => p.id !== pageId) || participants[0];
       const customerId = customer?.id;
@@ -66,18 +56,17 @@ export async function POST(req: Request) {
       }
 
       const msgList = conv.messages?.data || [];
-      // Graph API returns newest first, so we reverse to chronological order
       msgList.reverse();
 
       for (const m of msgList) {
         if (existingMsgIds.has(m.id)) {
-          continue; // Skip already imported message
+          continue;
         }
 
         const isMe = m.from?.id === pageId;
         const msgTime = new Date(m.created_time).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
         
-        let imageUrl = undefined;
+        let imageUrl: string | undefined = undefined;
         if (m.attachments?.data && m.attachments.data.length > 0) {
           const att = m.attachments.data[0];
           if (att.image_data?.url) {
@@ -85,13 +74,17 @@ export async function POST(req: Request) {
           }
         }
 
+        const numericId = Date.now() + Math.floor(Math.random() * 100000);
+        const timestamp = new Date(m.created_time).getTime();
+        const textVal = m.message || (imageUrl ? 'ส่งรูปภาพ' : '');
+
         const newMsgObj: any = {
-          id: Date.now() + Math.floor(Math.random() * 1000),
+          id: numericId,
           mid: m.id,
-          text: m.message || (imageUrl ? 'ส่งรูปภาพ' : ''),
+          text: textVal,
           time: msgTime,
           isCustomer: !isMe,
-          timestamp: new Date(m.created_time).getTime(),
+          timestamp,
         };
 
         if (imageUrl) {
@@ -110,6 +103,21 @@ export async function POST(req: Request) {
         existingMsgs.push(newMsgObj);
         existingMsgIds.add(m.id);
         importedCount++;
+
+        newSupabaseRows.push({
+          id: numericId,
+          mid: m.id,
+          text: textVal,
+          image_url: imageUrl || '',
+          time: msgTime,
+          is_customer: !isMe,
+          timestamp,
+          sender_id: isMe ? 'ME' : customerId,
+          sender_name: isMe ? 'เจ้าหน้าที่ร้าน' : customerName,
+          sender_avatar: '',
+          recipient_id: isMe ? customerId : null,
+          replied_by: isMe ? 'เจ้าหน้าที่ร้าน' : null
+        });
       }
     }
 
@@ -120,9 +128,22 @@ export async function POST(req: Request) {
       return timeA - timeB;
     });
 
-    // Save back to JSON files
-    fs.writeFileSync(messagesPath, JSON.stringify(existingMsgs, null, 2), 'utf8');
-    fs.writeFileSync(customersPath, JSON.stringify(customersInfo, null, 2), 'utf8');
+    if (supabase && newSupabaseRows.length > 0) {
+      try {
+        await supabase.from('messages').upsert(newSupabaseRows, { onConflict: 'mid', ignoreDuplicates: true });
+      } catch {
+        // Fallback if mid is not unique constraint
+        try {
+          await supabase.from('messages').insert(newSupabaseRows);
+        } catch {}
+      }
+    }
+
+    // Save back to JSON files safely (ignore EROFS on Vercel)
+    try {
+      fs.writeFileSync(messagesPath, JSON.stringify(existingMsgs, null, 2), 'utf8');
+    } catch {}
+    saveCustomersInfoMap(customersInfo);
 
     return NextResponse.json({ 
       success: true, 

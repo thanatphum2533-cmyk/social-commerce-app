@@ -24,26 +24,40 @@ declare global {
   var __appConfigCache: Record<string, any> | undefined;
 }
 
-function loadConfig(): Record<string, any> {
+export function loadConfig(): Record<string, any> {
   if (globalThis.__appConfigCache) {
     return globalThis.__appConfigCache;
   }
   try {
     if (fs.existsSync(filePath)) {
       const fileData = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      globalThis.__appConfigCache = { ...DEFAULT_CONFIG, ...fileData };
-      return globalThis.__appConfigCache;
+      const merged: Record<string, any> = { ...DEFAULT_CONFIG, ...fileData };
+      globalThis.__appConfigCache = merged;
+      return merged;
     }
   } catch {
     // Ignore read error
   }
-  globalThis.__appConfigCache = { ...DEFAULT_CONFIG };
+  const initial: Record<string, any> = { ...DEFAULT_CONFIG };
+  globalThis.__appConfigCache = initial;
   try {
-    fs.writeFileSync(filePath, JSON.stringify(globalThis.__appConfigCache, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(initial, null, 2));
   } catch {
     // Ignore EROFS on Vercel
   }
-  return globalThis.__appConfigCache;
+  return initial;
+}
+
+export function saveConfigData(newConfig: Record<string, any>): Record<string, any> {
+  const current = loadConfig();
+  const updated: Record<string, any> = { ...current, ...newConfig };
+  globalThis.__appConfigCache = updated;
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
+  } catch {
+    // On Vercel, filesystem is read-only; in-memory cache keeps it updated
+  }
+  return updated;
 }
 
 export async function GET() {
@@ -58,16 +72,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const newConfig = await request.json();
-    const current = loadConfig();
-    const updated = { ...current, ...newConfig };
-    globalThis.__appConfigCache = updated;
-
-    try {
-      fs.writeFileSync(filePath, JSON.stringify(updated, null, 2));
-    } catch {
-      // On Vercel, filesystem is read-only; in-memory cache keeps it updated
-    }
-
+    const updated = saveConfigData(newConfig);
     return NextResponse.json({ success: true, config: updated });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to save config' }, { status: 500 });

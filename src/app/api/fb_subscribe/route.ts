@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { saveConfigData } from '../config/route';
 
 export async function POST(request: Request) {
   try {
@@ -17,18 +16,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: subscribeData.error.message }, { status: 400 });
     }
 
-    // บันทึก Token ลง config.json ของเรา
-    const configPath = path.join(process.cwd(), 'data', 'config.json');
-    let db: any = {};
-    if (fs.existsSync(configPath)) {
-      db = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    }
-    
-    db.pageId = pageId;
-    db.pageName = pageName;
-    db.accessToken = pageAccessToken;
-    
-    fs.writeFileSync(configPath, JSON.stringify(db, null, 2));
+    // บันทึก Token ลง config
+    const db = saveConfigData({
+      pageId,
+      pageName,
+      accessToken: pageAccessToken
+    });
 
     return NextResponse.json({ success: true, config: db });
   } catch (error) {
